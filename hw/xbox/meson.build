@@ -15,6 +15,7 @@ specific_ss.add(files(
 	'xbox.c',
 	'xbox_pci.c',
 	'xid.c',
+	'mj9k.c',
 	))
 subdir('nv2a')
 subdir('mcpx')
