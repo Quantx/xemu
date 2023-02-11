@@ -32,7 +32,8 @@ extern "C" {
 int openrgb_connect(void);
 void openrgb_disconnect(void);
 int openrgb_setKeyboardColor(uint8_t r, uint8_t g, uint8_t b);
-int openrgb_setKeyColor(char * name, uint8_t r, uint8_t g, uint8_t b);
+int openrgb_setKeyColor(const char * name, uint8_t r, uint8_t g, uint8_t b);
+int openrgb_setScancodeColor(SDL_Scancode scan, uint8_t r, uint8_t g, uint8_t b);
 
 #ifdef __cplusplus
 }

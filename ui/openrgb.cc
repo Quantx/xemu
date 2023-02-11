@@ -23,6 +23,7 @@
  */
 
 #include "OpenRGB/Client.hpp"
+#include <SDL.h>
 #include "openrgb.h"
 
 #define DEBUG_OPENRGB
@@ -46,31 +47,27 @@ const orgb::Device * keyboard;
 int openrgb_connect(void)
 {
     ConnectStatus status = client.connect( "127.0.0.1" );  // you can also use Windows computer name
-    if (status != ConnectStatus::Success)
-    {
+    if (status != ConnectStatus::Success) {
         DPRINTF( "Failed to connect to OpenRGB server: %s (code: %d)\n",
             enumString( status ), int( client.getLastSystemError() ) );
         return -1;
     }
     
     DeviceListResult result = client.requestDeviceList();
-    if (result.status != RequestStatus::Success)
-    {
+    if (result.status != RequestStatus::Success) {
         DPRINTF( "Failed to get device list: %s (code: %d)\n",
             enumString( result.status ), int( client.getLastSystemError() ) );
         return -2;
     }
     
     keyboard = result.devices.find( DeviceType::Keyboard );
-    if (!keyboard)
-    {
+    if (!keyboard) {
         DPRINTF( "No RGB keyboards found" );
         return -3;
     }
     
     const orgb::Mode * directMode = keyboard->findMode( "Direct" );
-    if (!directMode)
-    {
+    if (!directMode) {
         DPRINTF( "Keyboard does not support direct mode" );
         return -4;
     }
@@ -87,14 +84,12 @@ void openrgb_disconnect(void)
 
 int openrgb_setKeyboardColor(uint8_t r, uint8_t g, uint8_t b)
 {
-    if (!client.isConnected())
-    {
+    if (!client.isConnected()) {
         DPRINTF( "Client is not connnected" );
         return -1;
     }
 
-    if (!keyboard)
-    {
+    if (!keyboard) {
         DPRINTF( "No keyboard found" );
         return -2;
     }
@@ -104,27 +99,29 @@ int openrgb_setKeyboardColor(uint8_t r, uint8_t g, uint8_t b)
 }
 
 // Color should be in ARGB format
-int openrgb_setKeyColor(char * name, uint8_t r, uint8_t g, uint8_t b)
+int openrgb_setKeyColor(const char * name, uint8_t r, uint8_t g, uint8_t b)
 {
-    if (!client.isConnected())
-    {
+    if (!client.isConnected()) {
         DPRINTF( "Client is not connnected" );
         return -1;
     }
 
-    if (!keyboard)
-    {
+    if (!keyboard) {
         DPRINTF( "No keyboard found" );
         return -2;
     }
 
     const orgb::LED * light = keyboard->findLED(name);
-    if (!light)
-    {
+    if (!light) {
         DPRINTF( "LED %s does not exist on this keyboard", name );
         return -3;
     }
     
     client.setLEDColor(*light, orgb::Color(r, g, b));
     return 0;
+}
+
+int openrgb_setScancodeColor(SDL_Scancode scan, uint8_t r, uint8_t g, uint8_t b)
+{
+    return openrgb_setKeyColor(SDL_GetScancodeName(scan), r, g, b);
 }

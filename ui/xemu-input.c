@@ -709,6 +709,11 @@ void xemu_input_bind(int index, ControllerState *state, int save)
         bound_controllers[index] = state;
         bound_controllers[index]->bound = index;
 
+        // Reset RGB if this is a Steel Battalion Controller with a keyboard
+        if (strcmp(bound_drivers[index], DRIVER_SB) == 0 && state->type == INPUT_DEVICE_SDL_KEYBOARD) {
+            openrgb_setKeyboardColor(0, 0, 0);
+        }
+
         const int port_map[4] = {3, 4, 1, 2};
         char *tmp;
 

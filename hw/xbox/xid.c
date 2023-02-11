@@ -28,6 +28,8 @@
 #include "hw/usb.h"
 #include "hw/usb/desc.h"
 #include "ui/xemu-input.h"
+#include "ui/openrgb.h"
+#include "ui/xemu-settings.h"
 
 //#define DEBUG_XID
 #ifdef DEBUG_XID
@@ -127,7 +129,7 @@ typedef struct XIDSteelBattalionReport {
 typedef struct XIDSteelBattalionOutputReport {
     uint8_t report_id;
     uint8_t length;
-    uint8_t notUsed[32];
+    uint32_t dwLights[5];
 } QEMU_PACKED XIDSteelBattalionOutputReport;
 
 typedef struct USBXIDGamepadState {
@@ -385,6 +387,104 @@ static void update_input(USBXIDGamepadState *s)
     s->in_state.sThumbRY = state->gp.axis[CONTROLLER_AXIS_RSTICK_Y];
 }
 
+static void update_sb_output(USBXIDSteelBattalionState *s)
+{
+    if(xemu_input_get_test_mode()) {
+        // Don't report changes if we are testing the controller while running
+        return;
+    }
+    
+    ControllerState *state = xemu_input_get_bound(s->device_index);
+    assert(state);
+    
+    if (state->type != INPUT_DEVICE_SDL_KEYBOARD) {
+        // Only update keyboard lights if we're mapped to one
+        return;
+    }
+    
+    // Decode each individual light
+    uint8_t eject       =  s->out_state.dwLights[0]        & 0xF;
+    uint8_t hatch       = (s->out_state.dwLights[0] >> 4)  & 0xF;
+    uint8_t ignition    = (s->out_state.dwLights[0] >> 8)  & 0xF;
+    uint8_t start       = (s->out_state.dwLights[0] >> 12) & 0xF;
+    uint8_t openClose   = (s->out_state.dwLights[0] >> 16) & 0xF;
+    uint8_t mapZoom     = (s->out_state.dwLights[0] >> 20) & 0xF;
+    uint8_t modeSel     = (s->out_state.dwLights[0] >> 24) & 0xF;
+    uint8_t subModeSel  = (s->out_state.dwLights[0] >> 28) & 0xF;
+    
+    uint8_t mainZoomIn  =  s->out_state.dwLights[1]        & 0xF;
+    uint8_t mainZoomOut = (s->out_state.dwLights[1] >> 4)  & 0xF;
+    uint8_t forecast    = (s->out_state.dwLights[1] >> 8)  & 0xF;
+    uint8_t manipulator = (s->out_state.dwLights[1] >> 12) & 0xF;
+    uint8_t lineColor   = (s->out_state.dwLights[1] >> 16) & 0xF;
+    uint8_t washing     = (s->out_state.dwLights[1] >> 20) & 0xF;
+    uint8_t extinguish  = (s->out_state.dwLights[1] >> 24) & 0xF;
+    uint8_t chaff       = (s->out_state.dwLights[1] >> 28) & 0xF;
+    
+    uint8_t detach      =  s->out_state.dwLights[2]        & 0xF;
+    uint8_t override    = (s->out_state.dwLights[2] >> 4)  & 0xF;
+    uint8_t nightScope  = (s->out_state.dwLights[2] >> 8)  & 0xF;
+    uint8_t func1       = (s->out_state.dwLights[2] >> 12) & 0xF;
+    uint8_t func2       = (s->out_state.dwLights[2] >> 16) & 0xF;
+    uint8_t func3       = (s->out_state.dwLights[2] >> 20) & 0xF;
+    uint8_t mainWep     = (s->out_state.dwLights[2] >> 24) & 0xF;
+    uint8_t subWep      = (s->out_state.dwLights[2] >> 28) & 0xF;
+    
+    uint8_t magChange   =  s->out_state.dwLights[3]        & 0xF;
+    uint8_t comm1       = (s->out_state.dwLights[3] >> 4)  & 0xF;
+    uint8_t comm2       = (s->out_state.dwLights[3] >> 8)  & 0xF;
+    uint8_t comm3       = (s->out_state.dwLights[3] >> 12) & 0xF;
+    uint8_t comm4       = (s->out_state.dwLights[3] >> 16) & 0xF;
+    uint8_t comm5       = (s->out_state.dwLights[3] >> 20) & 0xF;
+    // N/A
+    uint8_t gearR       = (s->out_state.dwLights[3] >> 28) & 0xF;
+    
+    uint8_t gearN       =  s->out_state.dwLights[4]        & 0xF;
+    uint8_t gear1       = (s->out_state.dwLights[4] >> 4)  & 0xF;
+    uint8_t gear2       = (s->out_state.dwLights[4] >> 8)  & 0xF;
+    uint8_t gear3       = (s->out_state.dwLights[4] >> 12) & 0xF;
+    uint8_t gear4       = (s->out_state.dwLights[4] >> 16) & 0xF;
+    uint8_t gear5       = (s->out_state.dwLights[4] >> 20) & 0xF;
+    // N/A
+    // N/A
+    
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.eject, eject << 4, 0, 0); // RED
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.cockpit_hatch, 0, hatch << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.ignition, 0, ignition << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.start, start << 4, 0, 0); // RED
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.open_close, 0, openClose << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.map_zoom_in_out, 0, mapZoom << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.mode_select, 0, modeSel << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.sub_monitor_mode_select, 0, subModeSel << 4, 0);
+    
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.zoom_in, 0, mainZoomIn << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.zoom_out, 0, mainZoomOut << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.fss, 0, forecast << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.manipulator, 0, manipulator << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.line_color_change, 0, lineColor << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.washing, 0, washing << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.extinguisher, 0, extinguish << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.chaff, 0, chaff << 4, 0);
+    
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.tank_detach, 0, detach << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.override, 0, override << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.night_scope, 0, nightScope << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.func1, 0, func1 << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.func2, 0, func2 << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.func3, 0, func3 << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.main_weapon_control, 0, mainWep << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.sub_weapon_control, 0, subWep << 4, 0);
+    
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.magazine_change, 0, magChange << 4, 0);
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.com1, comm1 << 4, 0, 0); // RED
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.com2, comm2 << 4, 0, 0); // RED
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.com3, comm3 << 4, 0, 0); // RED
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.com4, comm4 << 4, 0, 0); // RED
+    openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.com5, comm5 << 4, 0, 0); // RED
+    
+    // TODO: Figure out what to map the gear lights to (remember, Reverse Gear is RED)
+}
+
 static void update_sb_input(USBXIDSteelBattalionState *s)
 {
     if(xemu_input_get_test_mode()) {
@@ -552,7 +652,11 @@ static void usb_xid_handle_data(USBDevice *dev, USBPacket *p)
         break;
     case USB_TOKEN_OUT:
         if (p->ep->nr == 1) {
-            // TODO: Update output for Steel Battalion Controller here
+            if (desc->id.idVendor == USB_VENDOR_CAPCOM) {
+                USBXIDSteelBattalionState *s = DO_UPCAST(USBXIDSteelBattalionState, dev, dev);
+                usb_packet_copy(p, &s->out_state, s->out_state.length);
+                update_sb_output(s);
+            }
         } else if (p->ep->nr == 2) {
             if (desc->id.idVendor == USB_VENDOR_MICROSOFT) {
                 USBXIDGamepadState *s = DO_UPCAST(USBXIDGamepadState, dev, dev);
