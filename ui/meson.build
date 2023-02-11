@@ -142,6 +142,14 @@ endif
 
 endif # xemu_enable_extra_ui_modules
 
+if openrgb.found()
+  openrgb_ss = ss.source_set()
+  openrgb_ss.add(openrgb, files(
+    'openrgb.cc',
+  ))
+  ui_modules += {'openrgb' : openrgb_ss}
+endif
+
 keymap_gen = find_program('keycodemapdb/tools/keymap-gen')
 
 keymaps = [

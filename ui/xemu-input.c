@@ -33,6 +33,8 @@
 #include "xemu-notifications.h"
 #include "xemu-settings.h"
 
+#include "openrgb.h"
+
 // #define DEBUG_INPUT
 
 #ifdef DEBUG_INPUT
@@ -109,6 +111,8 @@ void xemu_input_init(void)
         fprintf(stderr, "Failed to initialize SDL gamecontroller subsystem: %s\n", SDL_GetError());
         exit(1);
     }
+    
+    openrgb_connect();
 
     // Create the keyboard input (always first)
     ControllerState *new_con = malloc(sizeof(ControllerState));

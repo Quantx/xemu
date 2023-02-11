@@ -85,3 +85,6 @@
 [submodule "hw/xbox/nv2a/thirdparty/nv2a_vsh_cpu"]
 	path = hw/xbox/nv2a/thirdparty/nv2a_vsh_cpu
 	url = https://github.com/abaire/nv2a_vsh_cpu.git
+[submodule "OpenRGB-cppSDK"]
+	path = OpenRGB-cppSDK
+	url = git@github.com:Youda008/OpenRGB-cppSDK.git

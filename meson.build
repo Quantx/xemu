@@ -475,6 +475,23 @@ if 'CONFIG_PLUGIN' in config_host or get_option('renderdoc').enabled()
     error('dlopen not found')
   endif
 endif
+openrgb = not_found
+if not get_option('openrgb').auto() or have_system
+  openrgb_build_cmd = [find_program('scripts/build-liborgb.sh'),
+                       meson.current_source_dir() / 'OpenRGB-cppSDK',
+                       targetos]
+  message('OPENRGB BUILD', meson.current_source_dir() / 'OpenRGB-cppSDK')
+  openrgb_build = custom_target('liborgb_build.log',
+                                output: 'liborgb_build.log',
+                                command: openrgb_build_cmd,
+                                capture: true,
+                                build_by_default: true,
+                                build_always_stale: true)
+  openrgb = declare_dependency(link_args: ['liborgbsdk.a'],
+                               include_directories: 'OpenRGB-cppSDK/include')
+                               
+  genh += openrgb_build
+endif
 libiscsi = not_found
 if not get_option('libiscsi').auto() or have_block
   libiscsi = dependency('libiscsi', version: '>=1.9.0',
@@ -1076,7 +1093,6 @@ if not get_option('libusb').auto() or have_system
                       version: '>=1.0.13', method: 'pkg-config',
                       kwargs: static_kwargs)
 endif
-
 libpmem = not_found
 if not get_option('libpmem').auto() or have_system
   libpmem = dependency('libpmem', required: get_option('libpmem'),
@@ -1313,6 +1329,7 @@ config_host_data.set('CONFIG_SDL_IMAGE', sdl_image.found())
 config_host_data.set('CONFIG_SECCOMP', seccomp.found())
 config_host_data.set('CONFIG_SNAPPY', snappy.found())
 config_host_data.set('CONFIG_USB_LIBUSB', libusb.found())
+config_host_data.set('CONFIG_OPENRGB', openrgb.found())
 config_host_data.set('CONFIG_VHOST_USER_BLK_SERVER', have_vhost_user_blk_server)
 config_host_data.set('CONFIG_VNC', vnc.found())
 config_host_data.set('CONFIG_VNC_JPEG', jpeg.found())
@@ -3151,6 +3168,7 @@ summary_info += {'xfsctl support':    config_host.has_key('CONFIG_XFS')}
 summary_info += {'smartcard support': cacard.found()}
 summary_info += {'U2F support':       u2f.found()}
 summary_info += {'libusb':            libusb.found()}
+summary_info += {'OpenRGB support':   openrgb.found()}
 summary_info += {'usb net redir':     usbredir.found()}
 summary_info += {'OpenGL support':    config_host.has_key('CONFIG_OPENGL')}
 summary_info += {'GBM':               config_host.has_key('CONFIG_GBM')}
