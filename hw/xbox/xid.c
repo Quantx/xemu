@@ -491,7 +491,7 @@ static void update_sb_output(USBXIDSteelBattalionState *s)
     openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.com4, comm4 << 4, 0, 0); // RED
     openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.com5, comm5 << 4, 0, 0); // RED
 
-    openrgb_commitColors(true);
+    openrgb_commitColors(false);
     // TODO: Figure out what to map the gear lights to (remember, Reverse Gear is RED)
 }
 
