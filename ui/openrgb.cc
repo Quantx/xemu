@@ -36,39 +36,82 @@
     do { } while (0)
 #endif
 
+#define OPENRGB_UPDATE_INTERVAL 200
+
 using orgb::ConnectStatus;
 using orgb::DeviceListResult;
 using orgb::RequestStatus;
+using orgb::UpdateStatus;
 using orgb::DeviceType;
+using std::string;
+using std::vector;
+
+typedef struct openrgb_ScancodeColor {
+    SDL_Scancode scan;
+    uint8_t r, g, b;
+} openrgb_ScancodeColor;
 
 orgb::Client client("XEMU OpenRGB Client");
-const orgb::Device * keyboard;
+orgb::DeviceListResult devList;
+vector<openrgb_ScancodeColor> openrgb_updates;
+
+int openrgb_updateDeviceList(void)
+{
+    UpdateStatus status = client.checkForDeviceUpdates();
+    if (status == UpdateStatus::UpToDate) return 0;
+    
+    if (status == UpdateStatus::OutOfDate) {
+        devList = client.requestDeviceList();
+        if (devList.status != RequestStatus::Success) {
+            DPRINTF( "Failed to get device list: %s (code: %d)\n",
+                enumString( devList.status ), int( client.getLastSystemError() ) );
+            return -2;
+        }
+        return 1;
+    }
+    
+    return -1;
+}
+
+static uint32_t nextUpdate;
+
+int openrgb_tick(void)
+{
+    uint32_t now = SDL_GetTicks();
+    if (now < nextUpdate) return 0;
+    nextUpdate = now + OPENRGB_UPDATE_INTERVAL;
+    return 1;
+}
 
 int openrgb_connect(void)
 {
-    ConnectStatus status = client.connect( "127.0.0.1" );  // you can also use Windows computer name
+    ConnectStatus status = client.connect("192.168.1.81");//"127.0.0.1");
     if (status != ConnectStatus::Success) {
         DPRINTF( "Failed to connect to OpenRGB server: %s (code: %d)\n",
             enumString( status ), int( client.getLastSystemError() ) );
         return -1;
     }
     
-    DeviceListResult result = client.requestDeviceList();
-    if (result.status != RequestStatus::Success) {
+    devList = client.requestDeviceList();
+    if (devList.status != RequestStatus::Success) {
         DPRINTF( "Failed to get device list: %s (code: %d)\n",
-            enumString( result.status ), int( client.getLastSystemError() ) );
+            enumString( devList.status ), int( client.getLastSystemError() ) );
         return -2;
     }
     
-    keyboard = result.devices.find( DeviceType::Keyboard );
+    const orgb::Device * keyboard = devList.devices.find(DeviceType::Keyboard);
     if (!keyboard) {
-        DPRINTF( "No RGB keyboards found" );
+        DPRINTF( "No RGB keyboards found\n" );
         return -3;
     }
     
+#ifdef DEBUG_OPENRGB
+    print(*keyboard);
+#endif
+    
     const orgb::Mode * directMode = keyboard->findMode( "Direct" );
     if (!directMode) {
-        DPRINTF( "Keyboard does not support direct mode" );
+        DPRINTF( "Keyboard does not support direct mode\n" );
         return -4;
     }
     client.changeMode( *keyboard, *directMode );
@@ -78,50 +121,80 @@ int openrgb_connect(void)
 
 void openrgb_disconnect(void)
 {
-    client.disconnect();   
-    keyboard = NULL;
+    client.disconnect();
 }
 
 int openrgb_setKeyboardColor(uint8_t r, uint8_t g, uint8_t b)
 {
-    if (!client.isConnected()) {
-        DPRINTF( "Client is not connnected" );
+    if (openrgb_updateDeviceList() < 0) {
+        DPRINTF( "Failed to get device list\n" );
         return -1;
     }
-
+    
+    const orgb::Device * keyboard = devList.devices.find(DeviceType::Keyboard);
     if (!keyboard) {
-        DPRINTF( "No keyboard found" );
+        DPRINTF( "No RGB keyboards found\n" );
         return -2;
     }
+    
+    DPRINTF("MASTER KB RESET\n");
     
     client.setDeviceColor(*keyboard, orgb::Color(r, g, b));
     return 0;
 }
 
 // Color should be in ARGB format
-int openrgb_setKeyColor(const char * name, uint8_t r, uint8_t g, uint8_t b)
+int openrgb_commitColors(bool forceUpdate)
 {
-    if (!client.isConnected()) {
-        DPRINTF( "Client is not connnected" );
+    if (openrgb_updateDeviceList() < 0) {
+        DPRINTF( "Failed to get device list\n" );
         return -1;
     }
-
+    
+    const orgb::Device * keyboard = devList.devices.find(DeviceType::Keyboard);
     if (!keyboard) {
-        DPRINTF( "No keyboard found" );
+        DPRINTF( "No RGB keyboards found\n" );
         return -2;
     }
-
-    const orgb::LED * light = keyboard->findLED(name);
-    if (!light) {
-        DPRINTF( "LED %s does not exist on this keyboard", name );
-        return -3;
+    
+    for (auto &update : openrgb_updates) {
+        string name = "Key: " + string(SDL_GetScancodeName(update.scan));
+        if ( name == "Key: PageUp"   ) name = "Key: Page Up";
+        if ( name == "Key: PageDown" ) name = "Key: Page Down";
+        
+//        DPRINTF("Setting light '%s' to %d %d %d\n", name.c_str(), update.r, update.g, update.b);
+        
+        const orgb::LED * light = keyboard->findLED(name);
+        if (light) {
+            client.setLEDColor(*light, orgb::Color(update.r, update.g, update.b));
+        } else {
+            DPRINTF( "LED '%s' does not exist on this keyboard\n", name.c_str() );
+        }
     }
     
-    client.setLEDColor(*light, orgb::Color(r, g, b));
-    return 0;
+    if (forceUpdate) {
+        client.requestDeviceInfo(keyboard->idx);
+    }
+    
+    // Empty update list and return number of keys updated
+    int count = openrgb_updates.size();
+    openrgb_updates.clear();
+    return count;
 }
 
 int openrgb_setScancodeColor(SDL_Scancode scan, uint8_t r, uint8_t g, uint8_t b)
 {
-    return openrgb_setKeyColor(SDL_GetScancodeName(scan), r, g, b);
+    if (!client.isConnected()) {
+        DPRINTF( "Client is not connnected\n" );
+        return -1;
+    }
+
+    openrgb_updates.push_back((openrgb_ScancodeColor){
+        .scan = scan,
+        .r = r,
+        .g = g,
+        .b = b
+    });
+    
+    return 0;
 }

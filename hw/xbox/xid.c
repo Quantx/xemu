@@ -31,7 +31,7 @@
 #include "ui/openrgb.h"
 #include "ui/xemu-settings.h"
 
-//#define DEBUG_XID
+#define DEBUG_XID
 #ifdef DEBUG_XID
 #define DPRINTF printf
 #else
@@ -402,10 +402,17 @@ static void update_sb_output(USBXIDSteelBattalionState *s)
         return;
     }
     
+    DPRINTF("SBC LIGHTS: %08X %08X %08X %08X %08X\n",
+            s->out_state.dwLights[0],
+            s->out_state.dwLights[1],
+            s->out_state.dwLights[2],
+            s->out_state.dwLights[3],
+            s->out_state.dwLights[4]);
+    
     // Decode each individual light
     uint8_t eject       =  s->out_state.dwLights[0]        & 0xF;
-    uint8_t hatch       = (s->out_state.dwLights[0] >> 4)  & 0xF;
-    uint8_t ignition    = (s->out_state.dwLights[0] >> 8)  & 0xF;
+    uint8_t hatch       = (s->out_state.dwLights[0] >>  4) & 0xF;
+    uint8_t ignition    = (s->out_state.dwLights[0] >>  8) & 0xF;
     uint8_t start       = (s->out_state.dwLights[0] >> 12) & 0xF;
     uint8_t openClose   = (s->out_state.dwLights[0] >> 16) & 0xF;
     uint8_t mapZoom     = (s->out_state.dwLights[0] >> 20) & 0xF;
@@ -413,8 +420,8 @@ static void update_sb_output(USBXIDSteelBattalionState *s)
     uint8_t subModeSel  = (s->out_state.dwLights[0] >> 28) & 0xF;
     
     uint8_t mainZoomIn  =  s->out_state.dwLights[1]        & 0xF;
-    uint8_t mainZoomOut = (s->out_state.dwLights[1] >> 4)  & 0xF;
-    uint8_t forecast    = (s->out_state.dwLights[1] >> 8)  & 0xF;
+    uint8_t mainZoomOut = (s->out_state.dwLights[1] >>  4) & 0xF;
+    uint8_t forecast    = (s->out_state.dwLights[1] >>  8) & 0xF;
     uint8_t manipulator = (s->out_state.dwLights[1] >> 12) & 0xF;
     uint8_t lineColor   = (s->out_state.dwLights[1] >> 16) & 0xF;
     uint8_t washing     = (s->out_state.dwLights[1] >> 20) & 0xF;
@@ -422,8 +429,8 @@ static void update_sb_output(USBXIDSteelBattalionState *s)
     uint8_t chaff       = (s->out_state.dwLights[1] >> 28) & 0xF;
     
     uint8_t detach      =  s->out_state.dwLights[2]        & 0xF;
-    uint8_t override    = (s->out_state.dwLights[2] >> 4)  & 0xF;
-    uint8_t nightScope  = (s->out_state.dwLights[2] >> 8)  & 0xF;
+    uint8_t override    = (s->out_state.dwLights[2] >>  4) & 0xF;
+    uint8_t nightScope  = (s->out_state.dwLights[2] >>  8) & 0xF;
     uint8_t func1       = (s->out_state.dwLights[2] >> 12) & 0xF;
     uint8_t func2       = (s->out_state.dwLights[2] >> 16) & 0xF;
     uint8_t func3       = (s->out_state.dwLights[2] >> 20) & 0xF;
@@ -431,8 +438,8 @@ static void update_sb_output(USBXIDSteelBattalionState *s)
     uint8_t subWep      = (s->out_state.dwLights[2] >> 28) & 0xF;
     
     uint8_t magChange   =  s->out_state.dwLights[3]        & 0xF;
-    uint8_t comm1       = (s->out_state.dwLights[3] >> 4)  & 0xF;
-    uint8_t comm2       = (s->out_state.dwLights[3] >> 8)  & 0xF;
+    uint8_t comm1       = (s->out_state.dwLights[3] >>  4) & 0xF;
+    uint8_t comm2       = (s->out_state.dwLights[3] >>  8) & 0xF;
     uint8_t comm3       = (s->out_state.dwLights[3] >> 12) & 0xF;
     uint8_t comm4       = (s->out_state.dwLights[3] >> 16) & 0xF;
     uint8_t comm5       = (s->out_state.dwLights[3] >> 20) & 0xF;
@@ -440,13 +447,15 @@ static void update_sb_output(USBXIDSteelBattalionState *s)
     uint8_t gearR       = (s->out_state.dwLights[3] >> 28) & 0xF;
     
     uint8_t gearN       =  s->out_state.dwLights[4]        & 0xF;
-    uint8_t gear1       = (s->out_state.dwLights[4] >> 4)  & 0xF;
-    uint8_t gear2       = (s->out_state.dwLights[4] >> 8)  & 0xF;
+    uint8_t gear1       = (s->out_state.dwLights[4] >>  4) & 0xF;
+    uint8_t gear2       = (s->out_state.dwLights[4] >>  8) & 0xF;
     uint8_t gear3       = (s->out_state.dwLights[4] >> 12) & 0xF;
     uint8_t gear4       = (s->out_state.dwLights[4] >> 16) & 0xF;
     uint8_t gear5       = (s->out_state.dwLights[4] >> 20) & 0xF;
     // N/A
     // N/A
+    
+    if (!openrgb_tick()) return;
     
     openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.eject, eject << 4, 0, 0); // RED
     openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.cockpit_hatch, 0, hatch << 4, 0);
@@ -481,7 +490,8 @@ static void update_sb_output(USBXIDSteelBattalionState *s)
     openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.com3, comm3 << 4, 0, 0); // RED
     openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.com4, comm4 << 4, 0, 0); // RED
     openrgb_setScancodeColor(g_config.input.keyboard_sbc_scancode_map.com5, comm5 << 4, 0, 0); // RED
-    
+
+    openrgb_commitColors(true);
     // TODO: Figure out what to map the gear lights to (remember, Reverse Gear is RED)
 }
 
@@ -627,7 +637,7 @@ static void usb_xid_handle_control(USBDevice *dev, USBPacket *p,
 
 static void usb_xid_handle_data(USBDevice *dev, USBPacket *p)
 {
-    DPRINTF("xid handle_data 0x%x %d 0x%zx\n", p->pid, p->ep->nr, p->iov.size);
+//    DPRINTF("xid handle_data 0x%x %d 0x%zx\n", p->pid, p->ep->nr, p->iov.size);
 
     const USBDesc * desc = usb_device_get_usb_desc(dev);
     assert(desc);
